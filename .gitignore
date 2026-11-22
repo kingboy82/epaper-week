@@ -4,3 +4,7 @@ config.json
 .pio/
 preview/_zoom*.png
 .DS_Store
+dist/
+firmware/epaper_week/build/
+*.elf
+*.map

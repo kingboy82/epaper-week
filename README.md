@@ -175,32 +175,87 @@ Open-Meteo，`forecast_days=15&past_days=7`（8 天覆盖不到"下周"）。
 
 ---
 
-## 7. 编译与烧录
+## 7. 烧录（新手照着做就行）
+
+需要准备：一台电脑、**一根能传数据的 USB 线**（很多充电线只有电源针，插上电脑认不出设备）、设备本体。
+
+### 方案 A：图形工具（推荐，约 5 分钟）
+
+适合 Windows，不用装开发环境。
+
+1. **下载固件**：打开 [Releases](https://github.com/kingboy82/epaper-week/releases/latest)，下载 `epaper_week-v1.0.0-merged.bin`（约 8MB）
+2. **下载烧录工具**：搜索「Flash Download Tool」（乐鑫官方，绿色免安装），解压打开
+3. 工具顶部选：`ChipType = ESP32`，`LoadMode = Develop`
+4. 第一行填：文件选刚下载的 `.bin`，地址填 **`0x0`**
+5. 用 USB 线连上设备，右下角选出现的 COM 口，`BAUD` 选 **115200**
+6. 点 **START**，等进度条到 100% 出现 `FINISH`
+7. 拔插一次 USB（或按板上的 RST），屏幕闪一下后出现周历
+
+> 这个包是「整包」，已经包含 bootloader 和分区表，所以地址必须填 `0x0`，不要填 `0x10000`。
+
+### 方案 B：Arduino IDE（Mac / Windows 通用）
+
+适合想改代码的人。第一次装环境约 20 分钟，之后一键上传。
+
+1. 安装 **Arduino IDE 2.x**
+2. `文件 → 首选项 → 附加开发板管理器网址`，填入：
+   ```
+   https://espressif.github.io/arduino-esp32/package_esp32_index.json
+   ```
+3. `工具 → 开发板 → 开发板管理器`，搜索 **esp32**，安装「esp32 by Espressif Systems」
+4. `工具 → 管理库`，逐个安装：
+   - `GxEPD2`
+   - `U8g2_for_Adafruit_GFX`
+   - `ArduinoJson`
+5. 打开 `firmware/epaper_week/epaper_week.ino`（会提示建同名文件夹，点「确定」）
+6. `工具` 菜单里按下表设置：
+
+   | 项目 | 选什么 |
+   |---|---|
+   | 开发板 | **ESP32 Dev Module** |
+   | Flash Size | **8MB** |
+   | Partition Scheme | **3MB APP / 5MB SPIFFS**（对应 default_8MB） |
+   | Upload Speed | **115200** |
+   | 端口 | 插上设备后新出现的那个 |
+
+7. 点左上角 **→** 上传，等出现 `Done uploading`
+
+> 分区一定要选 3MB APP。默认 1.2MB 装不下中文点阵，刷完会是白屏。
+
+### 第一次开机：配网
+
+1. 手机连热点 **`MyWIFI-Station`**（无密码）
+2. 浏览器打开 **`192.168.4.1`**
+3. 填 Wi-Fi 名称与密码；要让屏幕显示日程，再填企微邮箱和日历密码
+4. 点保存，设备自动重启并开始取数（约 1~2 分钟）
+
+日历密码获取：企微 App → 工作台 → 日程 → 右上角「三」→ **同步至其他日历**。
+这个密码是一次性生成的，重新获取会让旧密码立即失效，之后设备取数会 401，需要重新配网。
+
+### 卡住了看这里
+
+| 现象 | 原因与解决 |
+|---|---|
+| 电脑找不到串口 / 设备管理器有感叹号 | 装 **CH340 驱动**（板子用的是 CH340 串口芯片）；换一根能传数据的线 |
+| 点 START 后一直 `Connecting` | 按住板上 **BOOT** 键再点 START，出现 `Connecting` 后松开 |
+| Arduino IDE 报 `Failed to connect` | 同上（按住 BOOT）；或降低上传速度到 115200 |
+| 刷完白屏 / 花屏 | 分区没选 3MB APP；重选后再刷 |
+| 上传时报串口被占用 | 关掉 Arduino 的串口监视器、或其他占用串口的软件 |
+| 屏幕正常但日程是空的 | 没填日历密码，或当前网络把 443 拦了（部分办公/访客网络会） |
+
+### 开发者：命令行编译
 
 ```bash
-arduino-cli lib install "GxEPD2"
-arduino-cli lib install "U8g2_for_Adafruit_GFX"
-arduino-cli lib install "ArduinoJson"
+arduino-cli lib install "GxEPD2" "U8g2_for_Adafruit_GFX" "ArduinoJson"
+./build.sh compile                                # 等价于下面的 compile
+./build.sh upload /dev/cu.usbserial-XXXX          # 烧录
 
-./build.sh compile
-./build.sh upload /dev/cu.usbserial-XXXX
-```
-
-等价的手工命令（**必须指定 8MB + 3MB app 分区**，默认 1.2MB 装不下中文点阵）：
-
-```bash
 FQBN="esp32:esp32:esp32:FlashSize=8M,PartitionScheme=default_8MB"
 arduino-cli compile --fqbn "$FQBN" --warnings all firmware/epaper_week
 arduino-cli upload  --fqbn "$FQBN,UploadSpeed=115200" -p /dev/cu.usbserial-XXXX firmware/epaper_week
 ```
 
-`dist/` 下有当前版本的构建产物（含整包 `epaper_week.ino.merged.bin`，用 flash_download_tool 写 0x0 即可）。
-
-> **没装 Rosetta 的 Mac**：Arduino 自带 ctags 是 x86 程序，会报 `bad CPU type`。
-> 本工程函数都在使用前定义，可换成空脚本绕过：
-> `printf '#!/bin/sh\nexit 0\n' > ~/Library/Arduino15/packages/builtin/tools/ctags/5.8-arduino11/ctags && chmod +x`
-
----
+`dist/` 下是当前源码的构建产物（含整包 `epaper_week.ino.merged.bin`）。
 
 ## 8. 目录
 
