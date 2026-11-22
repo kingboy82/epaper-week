@@ -1,0 +1,6 @@
+.venv/
+config.json
+*.bin
+.pio/
+preview/_zoom*.png
+.DS_Store

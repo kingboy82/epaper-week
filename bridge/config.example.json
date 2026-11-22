@@ -1,0 +1,10 @@
+{
+  "port": 8787,
+  "latitude": 31.2304,
+  "longitude": 121.4737,
+  "caldav": {
+    "url": "https://caldav.wecom.work/calendar/",
+    "user": "你的企微邮箱@公司.com",
+    "password": "企微 App 里「同步至其他日历」生成的密码"
+  }
+}
