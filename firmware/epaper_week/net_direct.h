@@ -376,8 +376,14 @@ static bool fetchCalendarDirect(const char *email, const char *pass, const DayDa
     for (int j = 0; j < n; j++) {
       const RawEvent &e = parser.ev[sorted[j].idx];
       Ev &tgt = d.ev[d.n++];
+      int startMin = (int)e.hh * 60 + (int)e.mm;
+      int endMin = (int)e.ehh * 60 + (int)e.emm;
       if (e.allDay) {
         strncpy(tgt.t, "全天", sizeof(tgt.t) - 1);
+      } else if (endMin > startMin) {
+        // 起止时间（同一事件跨天时不显示结束，避免"22:00-01:00"看着像出错）
+        snprintf(tgt.t, sizeof(tgt.t), "%02u:%02u-%02u:%02u", (unsigned)(e.hh % 24),
+                 (unsigned)(e.mm % 60), (unsigned)(e.ehh % 24), (unsigned)(e.emm % 60));
       } else {
         snprintf(tgt.t, sizeof(tgt.t), "%02u:%02u", (unsigned)(e.hh % 24), (unsigned)(e.mm % 60));
       }

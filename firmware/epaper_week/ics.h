@@ -8,6 +8,7 @@
 struct RawEvent {
   int16_t y, mo, d;
   int16_t hh, mm;
+  int16_t ehh, emm;      // DTEND 的时刻，用来显示起止时间
   int16_t ey, emo, ed;   // DTEND 的日期，跨天事件用
   char summary[48];
   uint8_t freq;      // 0=不重复 1=DAILY 2=WEEKLY 3=MONTHLY
@@ -114,9 +115,10 @@ class IcsParser {
         cur.allDay = ad;
       } else if (head.startsWith("DTEND")) {
         bool ad = false;
-        int16_t ey, emo, ed, eh, em;
+        int16_t ey, emo, ed, eh = 0, em = 0;
         if (parseIcsDateTime(val, ad, ey, emo, ed, eh, em)) {
           cur.ey = ey; cur.emo = emo; cur.ed = ed;
+          cur.ehh = eh; cur.emm = em;
         }
       } else if (head.startsWith("SUMMARY")) {
         copySummary(cur, val);
