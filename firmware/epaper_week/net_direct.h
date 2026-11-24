@@ -383,6 +383,20 @@ static bool fetchCalendarDirect(const char *email, const char *pass, const DayDa
       }
       strncpy(tgt.n, e.summary, sizeof(tgt.n) - 1);
     }
+
+    // 去重：同一事件会被重复取回（多个集合里都有它，或 href 重复），
+    // 重复条数每次还不一样，导致内容指纹反复变化、每半小时无谓重刷。
+    // 按「时间 + 标题」只保留第一条。
+    for (uint8_t a = 0; a < d.n; a++) {
+      for (uint8_t b = a + 1; b < d.n;) {
+        if (strcmp(d.ev[a].t, d.ev[b].t) == 0 && strcmp(d.ev[a].n, d.ev[b].n) == 0) {
+          for (uint8_t k = b; k + 1 < d.n; k++) d.ev[k] = d.ev[k + 1];
+          d.n--;
+        } else {
+          b++;
+        }
+      }
+    }
   }
   for (int i = 0; i < 7; i++) {
     Serial.printf("[day] %02d/%02d n=%u:", days[i].mo, days[i].d, w.days[i].n);
